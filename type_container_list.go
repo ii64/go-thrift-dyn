@@ -31,10 +31,8 @@ func (t *TypeContainerList) Write(ctx context.Context, p thrift.TProtocol) (err 
 	}
 	for i := 0; i < size; i++ {
 		value := t.Value[i]
-		if thunk := value.WriteDataThunk(); thunk != nil {
-			if err = thunk(ctx, p); err != nil {
-				return
-			}
+		if err = value.WriteData(ctx, p); err != nil {
+			return
 		}
 	}
 	if err = p.WriteListEnd(ctx); err != nil {

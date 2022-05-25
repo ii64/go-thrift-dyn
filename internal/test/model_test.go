@@ -19,6 +19,7 @@ import (
 )
 
 const dmp = false
+const pprofX = false
 
 type readWriteCloser struct {
 	*io.PipeReader
@@ -96,27 +97,28 @@ func BenchmarkModelRebuildOriginal(bn *testing.B) {
 }
 
 func BenchmarkModelRebuildDyn(bn *testing.B) {
-	{
-		f, err := os.Create(strconv.FormatInt(time.Now().Unix(), 10) + ".cpu")
-		if err != nil {
-			panic(err)
+	if pprofX {
+		{
+			f, err := os.Create(strconv.FormatInt(time.Now().Unix(), 10) + ".cpu")
+			if err != nil {
+				panic(err)
+			}
+			if err = pprof.StartCPUProfile(f); err != nil {
+				panic(err)
+			}
 		}
-		if err = pprof.StartCPUProfile(f); err != nil {
-			panic(err)
-		}
+		defer pprof.StopCPUProfile()
+		defer func() {
+			f, err := os.Create(strconv.FormatInt(time.Now().Unix(), 10) + ".heap")
+			if err != nil {
+				panic(err)
+			}
+			defer f.Close()
+			if err = pprof.WriteHeapProfile(f); err != nil {
+				panic(err)
+			}
+		}()
 	}
-	defer pprof.StopCPUProfile()
-	defer func() {
-		f, err := os.Create(strconv.FormatInt(time.Now().Unix(), 10) + ".mem")
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		if err = pprof.WriteHeapProfile(f); err != nil {
-			panic(err)
-		}
-	}()
-
 	ctx := context.Background()
 	var err error
 	var b bytes.Buffer

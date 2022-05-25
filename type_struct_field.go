@@ -40,7 +40,7 @@ func NewTField(id TFieldID, type_ thrift.TType, name string, required bool) *TFi
 }
 
 // WriteDataThunk write to wire data. Now, pass func ptr that'll be executed later.
-func (f *TField) WriteDataThunk() (doFunc func(ctx context.Context, p thrift.TProtocol) error) {
+func (f *TField) WriteDataThunkx() (doFunc func(ctx context.Context, p thrift.TProtocol) error) {
 	if _, ok := f.Value.(*TypeContainerKV); ok {
 		doFunc = func(ctx context.Context, p thrift.TProtocol) error { return f.Value.(*TypeContainerKV).Write(ctx, p) }
 		return
@@ -138,14 +138,92 @@ CheckRequireness:
 	}
 }
 
+func (f *TField) WriteData(ctx context.Context, p thrift.TProtocol) (err error) {
+	if value, ok := f.Value.(*TypeContainerKV); ok {
+		return value.Write(ctx, p)
+	}
+	switch f.Type {
+	case thrift.STOP:
+		// nop.
+	case thrift.BOOL:
+		if value, ok := f.Value.(bool); ok {
+			return p.WriteBool(ctx, value)
+		} else if f.Required {
+			return p.WriteBool(ctx, false)
+		}
+	case thrift.BYTE:
+		switch value := f.Value.(type) {
+		case int8:
+			return p.WriteByte(ctx, value)
+		case byte:
+			return p.WriteByte(ctx, int8(value))
+		}
+		if f.Required {
+			return p.WriteByte(ctx, 0)
+		}
+	case thrift.I16:
+		if value, ok := f.Value.(int16); ok {
+			return p.WriteI16(ctx, value)
+		}
+		if f.Required {
+			return p.WriteI16(ctx, 0)
+		}
+	case thrift.I32:
+		if value, ok := f.Value.(int32); ok {
+			return p.WriteI32(ctx, value)
+		}
+		if f.Required {
+			return p.WriteI32(ctx, 0)
+		}
+	case thrift.I64:
+		switch value := f.Value.(type) {
+		case int64:
+			return p.WriteI64(ctx, value)
+		case int:
+			return p.WriteI64(ctx, int64(value))
+		}
+		if f.Required {
+			return p.WriteI64(ctx, 0)
+		}
+	case thrift.DOUBLE:
+		if value, ok := f.Value.(float64); ok {
+			return p.WriteDouble(ctx, value)
+		}
+		if f.Required {
+			return p.WriteDouble(ctx, 0)
+		}
+	case thrift.STRING:
+		if value, ok := f.Value.(string); ok {
+			return p.WriteString(ctx, value)
+		}
+		if f.Required {
+			return p.WriteString(ctx, "")
+		}
+	case thrift.STRUCT:
+		if value, ok := f.Value.(thrift.TStruct); ok {
+			return value.Write(ctx, p)
+		}
+		if f.Required {
+			return nil // nop.
+		}
+	case thrift.MAP, thrift.SET, thrift.LIST:
+		if value, ok := f.Value.(TypeContainerImplementer); ok {
+			return value.Write(ctx, p)
+		}
+		if f.Required {
+			return nil // nop.
+		}
+	}
+	return fmt.Errorf("expected %s, got %T", f.Type, f.Value)
+}
+
 // Write write struct field with its value.
 func (f *TField) Write(ctx context.Context, p thrift.TProtocol) (err error) {
-	thunk := f.WriteDataThunk() // pending write action.
-	if thunk != nil {
+	if f.Value != nil || f.Required {
 		if err = p.WriteFieldBegin(ctx, f.Name, f.Type, f.ID); err != nil {
 			return
 		}
-		if err = thunk(ctx, p); err != nil {
+		if err = f.WriteData(ctx, p); err != nil {
 			return
 		}
 		if err = p.WriteFieldEnd(ctx); err != nil {

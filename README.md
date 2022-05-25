@@ -29,19 +29,18 @@ Benchmark write of simple message (sized 32 bytes)
 
 ```
 TBinary:
-BenchmarkModelRebuildOriginal-12    5177924	       232.8 ns/op
-BenchmarkModelRebuildOriginal-12    5016391	       225.4 ns/op
-BenchmarkModelRebuildOriginal-12    5406008	       221.7 ns/op
-BenchmarkModelRebuildDyn-12    	    2428218	       485.1 ns/op
-BenchmarkModelRebuildDyn-12    	    2289037	       500.8 ns/op
-BenchmarkModelRebuildDyn-12         2549248	       545.1 ns/op
+BenchmarkModelRebuildOriginal-12     5368544	       224.8 ns/op
+BenchmarkModelRebuildOriginal-12     5474109	       230.8 ns/op
+BenchmarkModelRebuildOriginal-12     5214946	       217.6 ns/op
+BenchmarkModelRebuildDyn-12    	     4490389	       251.9 ns/op
+BenchmarkModelRebuildDyn-12    	     4143368	       253.0 ns/op
+BenchmarkModelRebuildDyn-12    	     4454946	       260.0 ns/op
 
 TCompact:
-BenchmarkModelRebuildOriginal-12    4135563	       249.8 ns/op
-BenchmarkModelRebuildOriginal-12    4033410	       250.9 ns/op
-BenchmarkModelRebuildOriginal-12    4571152	       252.9 ns/op
-BenchmarkModelRebuildDyn-12         2381887	       650.6 ns/op
-BenchmarkModelRebuildDyn-12         2359174	       525.4 ns/op
-BenchmarkModelRebuildDyn-12    	    2321109	       571.8 ns/op
-
+BenchmarkModelRebuildOriginal-12     4522177	       253.9 ns/op
+BenchmarkModelRebuildOriginal-12     4344098	       261.9 ns/op
+BenchmarkModelRebuildOriginal-12     3954589	       259.0 ns/op
+BenchmarkModelRebuildDyn-12    	     4282292	       275.9 ns/op
+BenchmarkModelRebuildDyn-12    	     4444050	       279.5 ns/op
+BenchmarkModelRebuildDyn-12    	     4120533	       280.7 ns/op
 ```

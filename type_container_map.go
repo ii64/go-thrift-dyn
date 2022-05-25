@@ -11,15 +11,11 @@ type TypeContainerKV struct {
 }
 
 func (kv *TypeContainerKV) Write(ctx context.Context, p thrift.TProtocol) (err error) {
-	if thunk := kv.Key.WriteDataThunk(); thunk != nil {
-		if err = thunk(ctx, p); err != nil {
-			return
-		}
+	if err = kv.Key.WriteData(ctx, p); err != nil {
+		return
 	}
-	if thunk := kv.Value.WriteDataThunk(); thunk != nil {
-		if err = thunk(ctx, p); err != nil {
-			return
-		}
+	if err = kv.Value.WriteData(ctx, p); err != nil {
+		return
 	}
 	return
 }
@@ -65,10 +61,8 @@ func (t *TypeContainerMap) Write(ctx context.Context, p thrift.TProtocol) (err e
 	}
 	for i := 0; i < size; i++ {
 		value := t.Value[i]
-		if thunk := value.WriteDataThunk(); thunk != nil {
-			if err = thunk(ctx, p); err != nil {
-				return
-			}
+		if err = value.WriteData(ctx, p); err != nil {
+			return
 		}
 	}
 	if err = p.WriteMapEnd(ctx); err != nil {
