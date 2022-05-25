@@ -204,7 +204,7 @@ func (f *TField) Read(ctx context.Context, p thrift.TProtocol) (err error) {
 		if elemType, size, err = p.ReadSetBegin(ctx); err != nil {
 			return
 		}
-		typ := NewTypeContainerList(f.Type, TypeContainerDesc{
+		typ := NewTypeContainerSet(f.Type, TypeContainerDesc{
 			Value: elemType,
 		}, f.Required)
 		typ.SetSize(size)
