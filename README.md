@@ -1,6 +1,9 @@
 
 # go-thrift-dyn
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ii64/go-thrift-dyn.svg)](https://pkg.go.dev/github.com/ii64/go-thrift-dyn)
+
 Inspect and rebuild Apache Thrift wire data
 
 
