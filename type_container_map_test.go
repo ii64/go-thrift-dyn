@@ -1,4 +1,4 @@
-package go_thriftproxy
+package thrift_dyn
 
 import (
 	"bytes"

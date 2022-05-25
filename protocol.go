@@ -1,4 +1,4 @@
-package go_thriftproxy
+package thrift_dyn
 
 import "github.com/apache/thrift/lib/go/thrift"
 
