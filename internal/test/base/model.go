@@ -3,6 +3,7 @@
 package base
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/apache/thrift/lib/go/thrift"
@@ -10,9 +11,10 @@ import (
 )
 
 type Model struct {
-	Abc string  `thrift:"abc,1" frugal:"1,default,string" db:"abc" json:"abc"`
-	Sd  int64   `thrift:"sd,4" frugal:"4,default,i64" db:"sd" json:"sd"`
-	F64 float64 `thrift:"f64,9" frugal:"9,default,double" db:"f64" json:"f64"`
+	Abc     string  `thrift:"abc,1" frugal:"1,default,string" db:"abc" json:"abc"`
+	Sd      int64   `thrift:"sd,4" frugal:"4,default,i64" db:"sd" json:"sd"`
+	F64     float64 `thrift:"f64,9" frugal:"9,default,double" db:"f64" json:"f64"`
+	ListI64 []int64 `thrift:"listI64,10" frugal:"10,optional,list<i64>" db:"listI64" json:"listI64,omitempty"`
 }
 
 func NewModel() *Model {
@@ -31,10 +33,24 @@ func (p *Model) GetF64() (v float64) {
 	return p.F64
 }
 
+var Model_ListI64_DEFAULT []int64
+
+func (p *Model) GetListI64() (v []int64) {
+	if !p.IsSetListI64() {
+		return Model_ListI64_DEFAULT
+	}
+	return p.ListI64
+}
+
 var fieldIDToName_Model = map[int16]string{
-	1: "abc",
-	4: "sd",
-	9: "f64",
+	1:  "abc",
+	4:  "sd",
+	9:  "f64",
+	10: "listI64",
+}
+
+func (p *Model) IsSetListI64() bool {
+	return p.ListI64 != nil
 }
 
 func (p *Model) Read(ctx context.Context, iprot thrift.TProtocol) (err error) {
@@ -79,6 +95,16 @@ func (p *Model) Read(ctx context.Context, iprot thrift.TProtocol) (err error) {
 		case 9:
 			if fieldTypeId == thrift.DOUBLE {
 				if err = p.ReadField9(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 10:
+			if fieldTypeId == thrift.LIST {
+				if err = p.ReadField10(ctx, iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -143,6 +169,28 @@ func (p *Model) ReadField9(ctx context.Context, iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *Model) ReadField10(ctx context.Context, iprot thrift.TProtocol) error {
+	_, size, err := iprot.ReadListBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.ListI64 = make([]int64, 0, size)
+	for i := 0; i < size; i++ {
+		var _elem int64
+		if v, err := iprot.ReadI64(ctx); err != nil {
+			return err
+		} else {
+			_elem = v
+		}
+
+		p.ListI64 = append(p.ListI64, _elem)
+	}
+	if err := iprot.ReadListEnd(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *Model) Write(ctx context.Context, oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin(ctx, "Model"); err != nil {
@@ -159,6 +207,10 @@ func (p *Model) Write(ctx context.Context, oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField9(ctx, oprot); err != nil {
 			fieldId = 9
+			goto WriteFieldError
+		}
+		if err = p.writeField10(ctx, oprot); err != nil {
+			fieldId = 10
 			goto WriteFieldError
 		}
 
@@ -231,6 +283,33 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 9 end error: ", p), err)
 }
 
+func (p *Model) writeField10(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if p.IsSetListI64() {
+		if err = oprot.WriteFieldBegin(ctx, "listI64", thrift.LIST, 10); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteListBegin(ctx, thrift.I64, len(p.ListI64)); err != nil {
+			return err
+		}
+		for _, v := range p.ListI64 {
+			if err := oprot.WriteI64(ctx, v); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(ctx); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(ctx); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 10 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 10 end error: ", p), err)
+}
+
 func (p *Model) String() string {
 	if p == nil {
 		return "<nil>"
@@ -251,6 +330,9 @@ func (p *Model) DeepEqual(ano *Model) bool {
 		return false
 	}
 	if !p.Field9DeepEqual(ano.F64) {
+		return false
+	}
+	if !p.Field10DeepEqual(ano.ListI64) {
 		return false
 	}
 	return true
@@ -277,12 +359,27 @@ func (p *Model) Field9DeepEqual(src float64) bool {
 	}
 	return true
 }
+func (p *Model) Field10DeepEqual(src []int64) bool {
+
+	if len(p.ListI64) != len(src) {
+		return false
+	}
+	for i, v := range p.ListI64 {
+		_src := src[i]
+		if v != _src {
+			return false
+		}
+	}
+	return true
+}
 
 type Request struct {
-	Model     *Model           `thrift:"model,6" frugal:"6,default,Model" db:"model" json:"model"`
-	Models    []*Model         `thrift:"models,44" frugal:"44,default,list<Model>" db:"models" json:"models"`
-	ModelById map[int64]*Model `thrift:"modelById,31" frugal:"31,default,map<i64:Model>" db:"modelById" json:"modelById"`
-	Modset    []*Model         `thrift:"modset,56" frugal:"56,optional,list<Model>" db:"modset" json:"modset,omitempty"`
+	Model       *Model             `thrift:"model,6" frugal:"6,default,Model" db:"model" json:"model"`
+	Model2      *Model             `thrift:"model2,7" frugal:"7,optional,Model" db:"model2" json:"model2,omitempty"`
+	Models      []*Model           `thrift:"models,44" frugal:"44,default,list<Model>" db:"models" json:"models"`
+	ModelById   map[int64]*Model   `thrift:"modelById,31" frugal:"31,default,map<i64:Model>" db:"modelById" json:"modelById"`
+	Modset      []*Model           `thrift:"modset,56" frugal:"56,optional,list<Model>" db:"modset" json:"modset,omitempty"`
+	ModelByTime map[int64][]*Model `thrift:"modelByTime,88" frugal:"88,default,map<i64:list<Model>>" db:"modelByTime" json:"modelByTime"`
 }
 
 func NewRequest() *Request {
@@ -296,6 +393,15 @@ func (p *Request) GetModel() (v *Model) {
 		return Request_Model_DEFAULT
 	}
 	return p.Model
+}
+
+var Request_Model2_DEFAULT *Model
+
+func (p *Request) GetModel2() (v *Model) {
+	if !p.IsSetModel2() {
+		return Request_Model2_DEFAULT
+	}
+	return p.Model2
 }
 
 func (p *Request) GetModels() (v []*Model) {
@@ -315,15 +421,25 @@ func (p *Request) GetModset() (v []*Model) {
 	return p.Modset
 }
 
+func (p *Request) GetModelByTime() (v map[int64][]*Model) {
+	return p.ModelByTime
+}
+
 var fieldIDToName_Request = map[int16]string{
 	6:  "model",
+	7:  "model2",
 	44: "models",
 	31: "modelById",
 	56: "modset",
+	88: "modelByTime",
 }
 
 func (p *Request) IsSetModel() bool {
 	return p.Model != nil
+}
+
+func (p *Request) IsSetModel2() bool {
+	return p.Model2 != nil
 }
 
 func (p *Request) IsSetModset() bool {
@@ -359,6 +475,16 @@ func (p *Request) Read(ctx context.Context, iprot thrift.TProtocol) (err error) 
 					goto SkipFieldError
 				}
 			}
+		case 7:
+			if fieldTypeId == thrift.STRUCT {
+				if err = p.ReadField7(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
 		case 44:
 			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField44(ctx, iprot); err != nil {
@@ -382,6 +508,16 @@ func (p *Request) Read(ctx context.Context, iprot thrift.TProtocol) (err error) 
 		case 56:
 			if fieldTypeId == thrift.SET {
 				if err = p.ReadField56(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 88:
+			if fieldTypeId == thrift.MAP {
+				if err = p.ReadField88(ctx, iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -422,6 +558,14 @@ ReadStructEndError:
 func (p *Request) ReadField6(ctx context.Context, iprot thrift.TProtocol) error {
 	p.Model = NewModel()
 	if err := p.Model.Read(ctx, iprot); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Request) ReadField7(ctx context.Context, iprot thrift.TProtocol) error {
+	p.Model2 = NewModel()
+	if err := p.Model2.Read(ctx, iprot); err != nil {
 		return err
 	}
 	return nil
@@ -493,6 +637,45 @@ func (p *Request) ReadField56(ctx context.Context, iprot thrift.TProtocol) error
 	return nil
 }
 
+func (p *Request) ReadField88(ctx context.Context, iprot thrift.TProtocol) error {
+	_, _, size, err := iprot.ReadMapBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.ModelByTime = make(map[int64][]*Model, size)
+	for i := 0; i < size; i++ {
+		var _key int64
+		if v, err := iprot.ReadI64(ctx); err != nil {
+			return err
+		} else {
+			_key = v
+		}
+
+		_, size, err := iprot.ReadListBegin(ctx)
+		if err != nil {
+			return err
+		}
+		_val := make([]*Model, 0, size)
+		for i := 0; i < size; i++ {
+			_elem := NewModel()
+			if err := _elem.Read(ctx, iprot); err != nil {
+				return err
+			}
+
+			_val = append(_val, _elem)
+		}
+		if err := iprot.ReadListEnd(ctx); err != nil {
+			return err
+		}
+
+		p.ModelByTime[_key] = _val
+	}
+	if err := iprot.ReadMapEnd(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *Request) Write(ctx context.Context, oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin(ctx, "Request"); err != nil {
@@ -501,6 +684,10 @@ func (p *Request) Write(ctx context.Context, oprot thrift.TProtocol) (err error)
 	if p != nil {
 		if err = p.writeField6(ctx, oprot); err != nil {
 			fieldId = 6
+			goto WriteFieldError
+		}
+		if err = p.writeField7(ctx, oprot); err != nil {
+			fieldId = 7
 			goto WriteFieldError
 		}
 		if err = p.writeField44(ctx, oprot); err != nil {
@@ -513,6 +700,10 @@ func (p *Request) Write(ctx context.Context, oprot thrift.TProtocol) (err error)
 		}
 		if err = p.writeField56(ctx, oprot); err != nil {
 			fieldId = 56
+			goto WriteFieldError
+		}
+		if err = p.writeField88(ctx, oprot); err != nil {
+			fieldId = 88
 			goto WriteFieldError
 		}
 
@@ -549,6 +740,25 @@ WriteFieldBeginError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 6 begin error: ", p), err)
 WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 6 end error: ", p), err)
+}
+
+func (p *Request) writeField7(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if p.IsSetModel2() {
+		if err = oprot.WriteFieldBegin(ctx, "model2", thrift.STRUCT, 7); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := p.Model2.Write(ctx, oprot); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(ctx); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 7 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 7 end error: ", p), err)
 }
 
 func (p *Request) writeField44(ctx context.Context, oprot thrift.TProtocol) (err error) {
@@ -645,6 +855,44 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 56 end error: ", p), err)
 }
 
+func (p *Request) writeField88(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin(ctx, "modelByTime", thrift.MAP, 88); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteMapBegin(ctx, thrift.I64, thrift.LIST, len(p.ModelByTime)); err != nil {
+		return err
+	}
+	for k, v := range p.ModelByTime {
+
+		if err := oprot.WriteI64(ctx, k); err != nil {
+			return err
+		}
+
+		if err := oprot.WriteListBegin(ctx, thrift.STRUCT, len(v)); err != nil {
+			return err
+		}
+		for _, v := range v {
+			if err := v.Write(ctx, oprot); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(ctx); err != nil {
+			return err
+		}
+	}
+	if err := oprot.WriteMapEnd(ctx); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(ctx); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 88 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 88 end error: ", p), err)
+}
+
 func (p *Request) String() string {
 	if p == nil {
 		return "<nil>"
@@ -661,6 +909,9 @@ func (p *Request) DeepEqual(ano *Request) bool {
 	if !p.Field6DeepEqual(ano.Model) {
 		return false
 	}
+	if !p.Field7DeepEqual(ano.Model2) {
+		return false
+	}
 	if !p.Field44DeepEqual(ano.Models) {
 		return false
 	}
@@ -670,12 +921,22 @@ func (p *Request) DeepEqual(ano *Request) bool {
 	if !p.Field56DeepEqual(ano.Modset) {
 		return false
 	}
+	if !p.Field88DeepEqual(ano.ModelByTime) {
+		return false
+	}
 	return true
 }
 
 func (p *Request) Field6DeepEqual(src *Model) bool {
 
 	if !p.Model.DeepEqual(src) {
+		return false
+	}
+	return true
+}
+func (p *Request) Field7DeepEqual(src *Model) bool {
+
+	if !p.Model2.DeepEqual(src) {
 		return false
 	}
 	return true
@@ -715,6 +976,25 @@ func (p *Request) Field56DeepEqual(src []*Model) bool {
 		_src := src[i]
 		if !v.DeepEqual(_src) {
 			return false
+		}
+	}
+	return true
+}
+func (p *Request) Field88DeepEqual(src map[int64][]*Model) bool {
+
+	if len(p.ModelByTime) != len(src) {
+		return false
+	}
+	for k, v := range p.ModelByTime {
+		_src := src[k]
+		if len(v) != len(_src) {
+			return false
+		}
+		for i, v := range v {
+			_src1 := _src[i]
+			if !v.DeepEqual(_src1) {
+				return false
+			}
 		}
 	}
 	return true
@@ -905,12 +1185,17 @@ func (p *ListOnly) Field91DeepEqual(src []string) bool {
 }
 
 type MapOnly struct {
-	StringById map[int64]string `thrift:"stringById,77" frugal:"77,default,map<i64:string>" db:"stringById" json:"stringById"`
-	ModelById  map[int64]*Model `thrift:"modelById,88" frugal:"88,default,map<i64:Model>" db:"modelById" json:"modelById"`
+	ListById   map[int64][]int32 `thrift:"listById,10" frugal:"10,default,map<i64:list<i32>>" db:"listById" json:"listById"`
+	StringById map[int64]string  `thrift:"stringById,77" frugal:"77,default,map<i64:string>" db:"stringById" json:"stringById"`
+	ModelById  map[int64]*Model  `thrift:"modelById,88" frugal:"88,default,map<i64:Model>" db:"modelById" json:"modelById"`
 }
 
 func NewMapOnly() *MapOnly {
 	return &MapOnly{}
+}
+
+func (p *MapOnly) GetListById() (v map[int64][]int32) {
+	return p.ListById
 }
 
 func (p *MapOnly) GetStringById() (v map[int64]string) {
@@ -922,6 +1207,7 @@ func (p *MapOnly) GetModelById() (v map[int64]*Model) {
 }
 
 var fieldIDToName_MapOnly = map[int16]string{
+	10: "listById",
 	77: "stringById",
 	88: "modelById",
 }
@@ -945,6 +1231,16 @@ func (p *MapOnly) Read(ctx context.Context, iprot thrift.TProtocol) (err error) 
 		}
 
 		switch fieldId {
+		case 10:
+			if fieldTypeId == thrift.MAP {
+				if err = p.ReadField10(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
 		case 77:
 			if fieldTypeId == thrift.MAP {
 				if err = p.ReadField77(ctx, iprot); err != nil {
@@ -993,6 +1289,47 @@ ReadFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
 ReadStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *MapOnly) ReadField10(ctx context.Context, iprot thrift.TProtocol) error {
+	_, _, size, err := iprot.ReadMapBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.ListById = make(map[int64][]int32, size)
+	for i := 0; i < size; i++ {
+		var _key int64
+		if v, err := iprot.ReadI64(ctx); err != nil {
+			return err
+		} else {
+			_key = v
+		}
+
+		_, size, err := iprot.ReadListBegin(ctx)
+		if err != nil {
+			return err
+		}
+		_val := make([]int32, 0, size)
+		for i := 0; i < size; i++ {
+			var _elem int32
+			if v, err := iprot.ReadI32(ctx); err != nil {
+				return err
+			} else {
+				_elem = v
+			}
+
+			_val = append(_val, _elem)
+		}
+		if err := iprot.ReadListEnd(ctx); err != nil {
+			return err
+		}
+
+		p.ListById[_key] = _val
+	}
+	if err := iprot.ReadMapEnd(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *MapOnly) ReadField77(ctx context.Context, iprot thrift.TProtocol) error {
@@ -1056,6 +1393,10 @@ func (p *MapOnly) Write(ctx context.Context, oprot thrift.TProtocol) (err error)
 		goto WriteStructBeginError
 	}
 	if p != nil {
+		if err = p.writeField10(ctx, oprot); err != nil {
+			fieldId = 10
+			goto WriteFieldError
+		}
 		if err = p.writeField77(ctx, oprot); err != nil {
 			fieldId = 77
 			goto WriteFieldError
@@ -1081,6 +1422,44 @@ WriteFieldStopError:
 	return thrift.PrependError(fmt.Sprintf("%T write field stop error: ", p), err)
 WriteStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
+}
+
+func (p *MapOnly) writeField10(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin(ctx, "listById", thrift.MAP, 10); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteMapBegin(ctx, thrift.I64, thrift.LIST, len(p.ListById)); err != nil {
+		return err
+	}
+	for k, v := range p.ListById {
+
+		if err := oprot.WriteI64(ctx, k); err != nil {
+			return err
+		}
+
+		if err := oprot.WriteListBegin(ctx, thrift.I32, len(v)); err != nil {
+			return err
+		}
+		for _, v := range v {
+			if err := oprot.WriteI32(ctx, v); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(ctx); err != nil {
+			return err
+		}
+	}
+	if err := oprot.WriteMapEnd(ctx); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(ctx); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 10 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 10 end error: ", p), err)
 }
 
 func (p *MapOnly) writeField77(ctx context.Context, oprot thrift.TProtocol) (err error) {
@@ -1156,6 +1535,9 @@ func (p *MapOnly) DeepEqual(ano *MapOnly) bool {
 	} else if p == nil || ano == nil {
 		return false
 	}
+	if !p.Field10DeepEqual(ano.ListById) {
+		return false
+	}
 	if !p.Field77DeepEqual(ano.StringById) {
 		return false
 	}
@@ -1165,6 +1547,25 @@ func (p *MapOnly) DeepEqual(ano *MapOnly) bool {
 	return true
 }
 
+func (p *MapOnly) Field10DeepEqual(src map[int64][]int32) bool {
+
+	if len(p.ListById) != len(src) {
+		return false
+	}
+	for k, v := range p.ListById {
+		_src := src[k]
+		if len(v) != len(_src) {
+			return false
+		}
+		for i, v := range v {
+			_src1 := _src[i]
+			if v != _src1 {
+				return false
+			}
+		}
+	}
+	return true
+}
 func (p *MapOnly) Field77DeepEqual(src map[int64]string) bool {
 
 	if len(p.StringById) != len(src) {
@@ -1283,12 +1684,18 @@ func (p *EmptyField) DeepEqual(ano *EmptyField) bool {
 }
 
 type SimpleListMap struct {
-	ListI64  []int64         `thrift:"listI64,555" frugal:"555,default,list<i64>" db:"listI64" json:"listI64"`
-	I64ByI64 map[int64]int64 `thrift:"i64ByI64,2016" frugal:"2016,default,map<i64:i64>" db:"i64ByI64" json:"i64ByI64"`
+	ListListI32 [][]int32       `thrift:"listListI32,10" frugal:"10,default,list<list<i32>>" db:"listListI32" json:"listListI32"`
+	ListI64     []int64         `thrift:"listI64,555" frugal:"555,default,list<i64>" db:"listI64" json:"listI64"`
+	I64ByI64    map[int64]int64 `thrift:"i64ByI64,2016" frugal:"2016,default,map<i64:i64>" db:"i64ByI64" json:"i64ByI64"`
+	ListString  []string        `thrift:"listString,2" frugal:"2,optional,list<string>" db:"listString" json:"listString,omitempty"`
 }
 
 func NewSimpleListMap() *SimpleListMap {
 	return &SimpleListMap{}
+}
+
+func (p *SimpleListMap) GetListListI32() (v [][]int32) {
+	return p.ListListI32
 }
 
 func (p *SimpleListMap) GetListI64() (v []int64) {
@@ -1299,9 +1706,24 @@ func (p *SimpleListMap) GetI64ByI64() (v map[int64]int64) {
 	return p.I64ByI64
 }
 
+var SimpleListMap_ListString_DEFAULT []string
+
+func (p *SimpleListMap) GetListString() (v []string) {
+	if !p.IsSetListString() {
+		return SimpleListMap_ListString_DEFAULT
+	}
+	return p.ListString
+}
+
 var fieldIDToName_SimpleListMap = map[int16]string{
+	10:   "listListI32",
 	555:  "listI64",
 	2016: "i64ByI64",
+	2:    "listString",
+}
+
+func (p *SimpleListMap) IsSetListString() bool {
+	return p.ListString != nil
 }
 
 func (p *SimpleListMap) Read(ctx context.Context, iprot thrift.TProtocol) (err error) {
@@ -1323,6 +1745,16 @@ func (p *SimpleListMap) Read(ctx context.Context, iprot thrift.TProtocol) (err e
 		}
 
 		switch fieldId {
+		case 10:
+			if fieldTypeId == thrift.LIST {
+				if err = p.ReadField10(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
 		case 555:
 			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField555(ctx, iprot); err != nil {
@@ -1336,6 +1768,16 @@ func (p *SimpleListMap) Read(ctx context.Context, iprot thrift.TProtocol) (err e
 		case 2016:
 			if fieldTypeId == thrift.MAP {
 				if err = p.ReadField2016(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 2:
+			if fieldTypeId == thrift.LIST {
+				if err = p.ReadField2(ctx, iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -1371,6 +1813,40 @@ ReadFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
 ReadStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *SimpleListMap) ReadField10(ctx context.Context, iprot thrift.TProtocol) error {
+	_, size, err := iprot.ReadListBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.ListListI32 = make([][]int32, 0, size)
+	for i := 0; i < size; i++ {
+		_, size, err := iprot.ReadListBegin(ctx)
+		if err != nil {
+			return err
+		}
+		_elem := make([]int32, 0, size)
+		for i := 0; i < size; i++ {
+			var _elem1 int32
+			if v, err := iprot.ReadI32(ctx); err != nil {
+				return err
+			} else {
+				_elem1 = v
+			}
+
+			_elem = append(_elem, _elem1)
+		}
+		if err := iprot.ReadListEnd(ctx); err != nil {
+			return err
+		}
+
+		p.ListListI32 = append(p.ListListI32, _elem)
+	}
+	if err := iprot.ReadListEnd(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *SimpleListMap) ReadField555(ctx context.Context, iprot thrift.TProtocol) error {
@@ -1424,18 +1900,48 @@ func (p *SimpleListMap) ReadField2016(ctx context.Context, iprot thrift.TProtoco
 	return nil
 }
 
+func (p *SimpleListMap) ReadField2(ctx context.Context, iprot thrift.TProtocol) error {
+	_, size, err := iprot.ReadListBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.ListString = make([]string, 0, size)
+	for i := 0; i < size; i++ {
+		var _elem string
+		if v, err := iprot.ReadString(ctx); err != nil {
+			return err
+		} else {
+			_elem = v
+		}
+
+		p.ListString = append(p.ListString, _elem)
+	}
+	if err := iprot.ReadListEnd(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *SimpleListMap) Write(ctx context.Context, oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin(ctx, "SimpleListMap"); err != nil {
 		goto WriteStructBeginError
 	}
 	if p != nil {
+		if err = p.writeField10(ctx, oprot); err != nil {
+			fieldId = 10
+			goto WriteFieldError
+		}
 		if err = p.writeField555(ctx, oprot); err != nil {
 			fieldId = 555
 			goto WriteFieldError
 		}
 		if err = p.writeField2016(ctx, oprot); err != nil {
 			fieldId = 2016
+			goto WriteFieldError
+		}
+		if err = p.writeField2(ctx, oprot); err != nil {
+			fieldId = 2
 			goto WriteFieldError
 		}
 
@@ -1455,6 +1961,39 @@ WriteFieldStopError:
 	return thrift.PrependError(fmt.Sprintf("%T write field stop error: ", p), err)
 WriteStructEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
+}
+
+func (p *SimpleListMap) writeField10(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin(ctx, "listListI32", thrift.LIST, 10); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteListBegin(ctx, thrift.LIST, len(p.ListListI32)); err != nil {
+		return err
+	}
+	for _, v := range p.ListListI32 {
+		if err := oprot.WriteListBegin(ctx, thrift.I32, len(v)); err != nil {
+			return err
+		}
+		for _, v := range v {
+			if err := oprot.WriteI32(ctx, v); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(ctx); err != nil {
+			return err
+		}
+	}
+	if err := oprot.WriteListEnd(ctx); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(ctx); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 10 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 10 end error: ", p), err)
 }
 
 func (p *SimpleListMap) writeField555(ctx context.Context, oprot thrift.TProtocol) (err error) {
@@ -1512,6 +2051,33 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 2016 end error: ", p), err)
 }
 
+func (p *SimpleListMap) writeField2(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if p.IsSetListString() {
+		if err = oprot.WriteFieldBegin(ctx, "listString", thrift.LIST, 2); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteListBegin(ctx, thrift.STRING, len(p.ListString)); err != nil {
+			return err
+		}
+		for _, v := range p.ListString {
+			if err := oprot.WriteString(ctx, v); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteListEnd(ctx); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(ctx); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 2 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
+}
+
 func (p *SimpleListMap) String() string {
 	if p == nil {
 		return "<nil>"
@@ -1525,15 +2091,40 @@ func (p *SimpleListMap) DeepEqual(ano *SimpleListMap) bool {
 	} else if p == nil || ano == nil {
 		return false
 	}
+	if !p.Field10DeepEqual(ano.ListListI32) {
+		return false
+	}
 	if !p.Field555DeepEqual(ano.ListI64) {
 		return false
 	}
 	if !p.Field2016DeepEqual(ano.I64ByI64) {
 		return false
 	}
+	if !p.Field2DeepEqual(ano.ListString) {
+		return false
+	}
 	return true
 }
 
+func (p *SimpleListMap) Field10DeepEqual(src [][]int32) bool {
+
+	if len(p.ListListI32) != len(src) {
+		return false
+	}
+	for i, v := range p.ListListI32 {
+		_src := src[i]
+		if len(v) != len(_src) {
+			return false
+		}
+		for i, v := range v {
+			_src1 := _src[i]
+			if v != _src1 {
+				return false
+			}
+		}
+	}
+	return true
+}
 func (p *SimpleListMap) Field555DeepEqual(src []int64) bool {
 
 	if len(p.ListI64) != len(src) {
@@ -1554,6 +2145,398 @@ func (p *SimpleListMap) Field2016DeepEqual(src map[int64]int64) bool {
 	}
 	for k, v := range p.I64ByI64 {
 		_src := src[k]
+		if v != _src {
+			return false
+		}
+	}
+	return true
+}
+func (p *SimpleListMap) Field2DeepEqual(src []string) bool {
+
+	if len(p.ListString) != len(src) {
+		return false
+	}
+	for i, v := range p.ListString {
+		_src := src[i]
+		if strings.Compare(v, _src) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+type Common struct {
+	Bin  []byte `thrift:"bin,1" frugal:"1,default,binary" db:"bin" json:"bin"`
+	Bin2 string `thrift:"bin2,2" frugal:"2,default,string" db:"bin2" json:"bin2"`
+	Bin3 []int8 `thrift:"bin3,3" frugal:"3,default,list<i8>" db:"bin3" json:"bin3"`
+	Bin4 []int8 `thrift:"bin4,4" frugal:"4,default,list<byte>" db:"bin4" json:"bin4"`
+}
+
+func NewCommon() *Common {
+	return &Common{}
+}
+
+func (p *Common) GetBin() (v []byte) {
+	return p.Bin
+}
+
+func (p *Common) GetBin2() (v string) {
+	return p.Bin2
+}
+
+func (p *Common) GetBin3() (v []int8) {
+	return p.Bin3
+}
+
+func (p *Common) GetBin4() (v []int8) {
+	return p.Bin4
+}
+
+var fieldIDToName_Common = map[int16]string{
+	1: "bin",
+	2: "bin2",
+	3: "bin3",
+	4: "bin4",
+}
+
+func (p *Common) Read(ctx context.Context, iprot thrift.TProtocol) (err error) {
+
+	var fieldTypeId thrift.TType
+	var fieldId int16
+
+	if _, err = iprot.ReadStructBegin(ctx); err != nil {
+		goto ReadStructBeginError
+	}
+
+	for {
+		_, fieldTypeId, fieldId, err = iprot.ReadFieldBegin(ctx)
+		if err != nil {
+			goto ReadFieldBeginError
+		}
+		if fieldTypeId == thrift.STOP {
+			break
+		}
+
+		switch fieldId {
+		case 1:
+			if fieldTypeId == thrift.STRING {
+				if err = p.ReadField1(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 2:
+			if fieldTypeId == thrift.STRING {
+				if err = p.ReadField2(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 3:
+			if fieldTypeId == thrift.LIST {
+				if err = p.ReadField3(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 4:
+			if fieldTypeId == thrift.LIST {
+				if err = p.ReadField4(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		default:
+			if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+				goto SkipFieldError
+			}
+		}
+
+		if err = iprot.ReadFieldEnd(ctx); err != nil {
+			goto ReadFieldEndError
+		}
+	}
+	if err = iprot.ReadStructEnd(ctx); err != nil {
+		goto ReadStructEndError
+	}
+
+	return nil
+ReadStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct begin error: ", p), err)
+ReadFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d begin error: ", p, fieldId), err)
+ReadFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T read field %d '%s' error: ", p, fieldId, fieldIDToName_Common[fieldId]), err)
+SkipFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T field %d skip type %d error: ", p, fieldId, fieldTypeId), err)
+
+ReadFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read field end error", p), err)
+ReadStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T read struct end error: ", p), err)
+}
+
+func (p *Common) ReadField1(ctx context.Context, iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadBinary(ctx); err != nil {
+		return err
+	} else {
+		p.Bin = []byte(v)
+	}
+	return nil
+}
+
+func (p *Common) ReadField2(ctx context.Context, iprot thrift.TProtocol) error {
+	if v, err := iprot.ReadString(ctx); err != nil {
+		return err
+	} else {
+		p.Bin2 = v
+	}
+	return nil
+}
+
+func (p *Common) ReadField3(ctx context.Context, iprot thrift.TProtocol) error {
+	_, size, err := iprot.ReadListBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.Bin3 = make([]int8, 0, size)
+	for i := 0; i < size; i++ {
+		var _elem int8
+		if v, err := iprot.ReadByte(ctx); err != nil {
+			return err
+		} else {
+			_elem = v
+		}
+
+		p.Bin3 = append(p.Bin3, _elem)
+	}
+	if err := iprot.ReadListEnd(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Common) ReadField4(ctx context.Context, iprot thrift.TProtocol) error {
+	_, size, err := iprot.ReadListBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.Bin4 = make([]int8, 0, size)
+	for i := 0; i < size; i++ {
+		var _elem int8
+		if v, err := iprot.ReadByte(ctx); err != nil {
+			return err
+		} else {
+			_elem = v
+		}
+
+		p.Bin4 = append(p.Bin4, _elem)
+	}
+	if err := iprot.ReadListEnd(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Common) Write(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	var fieldId int16
+	if err = oprot.WriteStructBegin(ctx, "Common"); err != nil {
+		goto WriteStructBeginError
+	}
+	if p != nil {
+		if err = p.writeField1(ctx, oprot); err != nil {
+			fieldId = 1
+			goto WriteFieldError
+		}
+		if err = p.writeField2(ctx, oprot); err != nil {
+			fieldId = 2
+			goto WriteFieldError
+		}
+		if err = p.writeField3(ctx, oprot); err != nil {
+			fieldId = 3
+			goto WriteFieldError
+		}
+		if err = p.writeField4(ctx, oprot); err != nil {
+			fieldId = 4
+			goto WriteFieldError
+		}
+
+	}
+	if err = oprot.WriteFieldStop(ctx); err != nil {
+		goto WriteFieldStopError
+	}
+	if err = oprot.WriteStructEnd(ctx); err != nil {
+		goto WriteStructEndError
+	}
+	return nil
+WriteStructBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct begin error: ", p), err)
+WriteFieldError:
+	return thrift.PrependError(fmt.Sprintf("%T write field %d error: ", p, fieldId), err)
+WriteFieldStopError:
+	return thrift.PrependError(fmt.Sprintf("%T write field stop error: ", p), err)
+WriteStructEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write struct end error: ", p), err)
+}
+
+func (p *Common) writeField1(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin(ctx, "bin", thrift.STRING, 1); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteBinary(ctx, []byte(p.Bin)); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(ctx); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 1 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 1 end error: ", p), err)
+}
+
+func (p *Common) writeField2(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin(ctx, "bin2", thrift.STRING, 2); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteString(ctx, p.Bin2); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(ctx); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 2 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 2 end error: ", p), err)
+}
+
+func (p *Common) writeField3(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin(ctx, "bin3", thrift.LIST, 3); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteListBegin(ctx, thrift.BYTE, len(p.Bin3)); err != nil {
+		return err
+	}
+	for _, v := range p.Bin3 {
+		if err := oprot.WriteByte(ctx, v); err != nil {
+			return err
+		}
+	}
+	if err := oprot.WriteListEnd(ctx); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(ctx); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 3 end error: ", p), err)
+}
+
+func (p *Common) writeField4(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if err = oprot.WriteFieldBegin(ctx, "bin4", thrift.LIST, 4); err != nil {
+		goto WriteFieldBeginError
+	}
+	if err := oprot.WriteListBegin(ctx, thrift.BYTE, len(p.Bin4)); err != nil {
+		return err
+	}
+	for _, v := range p.Bin4 {
+		if err := oprot.WriteByte(ctx, v); err != nil {
+			return err
+		}
+	}
+	if err := oprot.WriteListEnd(ctx); err != nil {
+		return err
+	}
+	if err = oprot.WriteFieldEnd(ctx); err != nil {
+		goto WriteFieldEndError
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 4 end error: ", p), err)
+}
+
+func (p *Common) String() string {
+	if p == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("Common(%+v)", *p)
+}
+
+func (p *Common) DeepEqual(ano *Common) bool {
+	if p == ano {
+		return true
+	} else if p == nil || ano == nil {
+		return false
+	}
+	if !p.Field1DeepEqual(ano.Bin) {
+		return false
+	}
+	if !p.Field2DeepEqual(ano.Bin2) {
+		return false
+	}
+	if !p.Field3DeepEqual(ano.Bin3) {
+		return false
+	}
+	if !p.Field4DeepEqual(ano.Bin4) {
+		return false
+	}
+	return true
+}
+
+func (p *Common) Field1DeepEqual(src []byte) bool {
+
+	if bytes.Compare(p.Bin, src) != 0 {
+		return false
+	}
+	return true
+}
+func (p *Common) Field2DeepEqual(src string) bool {
+
+	if strings.Compare(p.Bin2, src) != 0 {
+		return false
+	}
+	return true
+}
+func (p *Common) Field3DeepEqual(src []int8) bool {
+
+	if len(p.Bin3) != len(src) {
+		return false
+	}
+	for i, v := range p.Bin3 {
+		_src := src[i]
+		if v != _src {
+			return false
+		}
+	}
+	return true
+}
+func (p *Common) Field4DeepEqual(src []int8) bool {
+
+	if len(p.Bin4) != len(src) {
+		return false
+	}
+	for i, v := range p.Bin4 {
+		_src := src[i]
 		if v != _src {
 			return false
 		}

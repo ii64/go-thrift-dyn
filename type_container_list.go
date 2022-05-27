@@ -2,36 +2,45 @@ package thrift_dyn
 
 import (
 	"context"
+	"fmt"
 	"github.com/apache/thrift/lib/go/thrift"
 )
 
-type TypeContainerList struct {
-	TypeContainer
+type TypeContainerList[T Sliceable] struct {
+	Type     thrift.TType
+	Required bool
+	Desc     TypeContainerDesc
+	Size     int
+	Value    []T
 }
 
-func NewTypeContainerList(type_ thrift.TType, desc TypeContainerDesc, required bool) TypeContainerImplementer {
-	return &TypeContainerList{
-		TypeContainer: TypeContainer{
-			Type: type_, Desc: desc,
-		},
+func NewTypeContainerList[T Sliceable](desc TypeContainerDesc, required bool) *TypeContainerList[T] {
+	typ := &TypeContainerList[T]{
+		Type:     thrift.LIST,
+		Required: required,
+		Desc:     desc,
 	}
+	return typ
 }
 
-func (t *TypeContainerList) newElement(type_ thrift.TType) *TField {
-	return NewTField(0, type_, "list_value", true)
-}
-func (t *TypeContainerList) Element() *TField {
-	return t.newElement(t.Desc.Value)
+func (t *TypeContainerList[T]) Add(vs ...T) {
+	t.Value = append(t.Value, vs...)
 }
 
-func (t *TypeContainerList) Write(ctx context.Context, p thrift.TProtocol) (err error) {
+func (t *TypeContainerList[T]) Write(ctx context.Context, p thrift.TProtocol) (err error) {
 	size := t.GetSize()
 	if err = p.WriteListBegin(ctx, t.Desc.Value, size); err != nil {
 		return
 	}
 	for i := 0; i < size; i++ {
-		value := t.Value[i]
-		if err = value.WriteData(ctx, p); err != nil {
+		if err = WriteData[T](ctx, TData[T]{
+			TDataSpec: TDataSpec{
+				Type:     t.Desc.Value,
+				Required: t.Required,
+				Protocol: p,
+			},
+			Value: &t.Value[i],
+		}); err != nil {
 			return
 		}
 	}
@@ -41,15 +50,54 @@ func (t *TypeContainerList) Write(ctx context.Context, p thrift.TProtocol) (err 
 	return
 }
 
-func (t *TypeContainerList) Read(ctx context.Context, p thrift.TProtocol) (err error) {
-	var vv = t.Value[:0]
+func (t *TypeContainerList[T]) Read(ctx context.Context, p thrift.TProtocol) (err error) {
+	vv := t.Value[:0]
 	for i := 0; i < t.Size; i++ {
-		el := t.Element()
-		if err = el.Read(ctx, p); err != nil {
+		var value T
+		data := TData[T]{
+			TDataSpec: TDataSpec{
+				Type:     t.Desc.Value,
+				Required: t.Required,
+				Protocol: p,
+			},
+			Value: &value,
+		}
+		if err = ReadData(ctx, data); err != nil {
 			return
 		}
-		vv = append(vv, el)
+		vv = append(vv, value)
 	}
 	t.Value = vv
 	return
+}
+
+func (t *TypeContainerList[T]) SetSize(v int) {
+	t.Size = v
+}
+func (t *TypeContainerList[T]) GetSize() int {
+	return len(t.Value)
+}
+
+func NewTypeContainerListOfTType(desc TypeContainerDesc, required bool) (TypeContainerImplementer, error) {
+	switch desc.Value {
+	case thrift.BOOL:
+		return NewTypeContainerList[bool](desc, required), nil
+	case thrift.BYTE:
+		return NewTypeContainerList[int8](desc, required), nil
+	case thrift.I16:
+		return NewTypeContainerList[int16](desc, required), nil
+	case thrift.I32:
+		return NewTypeContainerList[int32](desc, required), nil
+	case thrift.I64:
+		return NewTypeContainerList[int64](desc, required), nil
+	case thrift.DOUBLE:
+		return NewTypeContainerList[float64](desc, required), nil
+	case thrift.STRING:
+		return NewTypeContainerList[string](desc, required), nil
+	case thrift.STRUCT:
+		return NewTypeContainerList[thrift.TStruct](desc, required), nil
+	case thrift.MAP, thrift.LIST, thrift.SET:
+		return NewTypeContainerList[TypeContainerImplementer](desc, required), nil
+	}
+	return nil, fmt.Errorf("unhandled type %T", desc.Value)
 }

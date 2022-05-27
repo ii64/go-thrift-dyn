@@ -4,3 +4,4 @@
 *.cpu
 *.heap
 *.mem
+*.out

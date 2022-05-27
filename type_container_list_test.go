@@ -40,17 +40,21 @@ func TestTypeContainer_List_Set(t *testing.T) {
 			// the only difference is on the struct TField type.
 
 			for _, typ := range []TypeContainerImplementer{
-				NewTypeContainerList(thrift.LIST, TypeContainerDesc{
+				NewTypeContainerList[string](TypeContainerDesc{
 					Value: thrift.STRING,
 				}, true),
-				NewTypeContainerSet(thrift.SET, TypeContainerDesc{
+				NewTypeContainerSet[string](TypeContainerDesc{
 					Value: thrift.STRING,
 				}, true),
 			} {
-				for _, s := range data {
-					err = typ.Add(typ.Element().SetValue(s))
-					is.NoError(err)
+
+				switch typ := typ.(type) {
+				case *TypeContainerList[string]:
+					typ.Value = data
+				case *TypeContainerSet[string]:
+					typ.Value = data
 				}
+
 				err = typ.Write(ctx, proto)
 				is.NoError(err)
 

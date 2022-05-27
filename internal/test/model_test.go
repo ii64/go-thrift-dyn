@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const dmp = false
+const dmp = true
 const pprofX = false
 
 type readWriteCloser struct {
@@ -26,14 +26,19 @@ type readWriteCloser struct {
 	*io.PipeWriter
 	b      *bytes.Buffer
 	readed *int
+	mu     sync.Mutex
 }
 
 func (rw readWriteCloser) Write(b []byte) (n int, err error) {
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
 	rw.b.Write(b)
 	return rw.PipeWriter.Write(b)
 }
 
 func (rw readWriteCloser) Read(b []byte) (n int, err error) {
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
 	if *rw.readed > rw.b.Len() {
 		err = io.EOF
 		return
@@ -71,11 +76,18 @@ func BenchmarkModelRebuildOriginal(bn *testing.B) {
 	ctx := context.Background()
 	var err error
 	var b bytes.Buffer
+	b.Grow(2 << 11)
 	trans := thrift.NewStreamTransportRW(&b)
 	protofactory := th.ProtocolFactory(th.ProtocolType_Compact, &thrift.TConfiguration{})
 	prot := protofactory.GetProtocol(trans)
 
+	listData := []int64{1, 2, 3}
+
 	var m base.Model
+	m.Abc = "hello"
+	m.Sd = 0xcafe
+	m.ListI64 = listData
+
 	m.Write(ctx, prot)
 	prot.Flush(ctx)
 	fmt.Println(b.Bytes())
@@ -84,6 +96,7 @@ func BenchmarkModelRebuildOriginal(bn *testing.B) {
 		b.Reset()
 		m.Abc = "hello"
 		m.Sd = 0xcafe
+		m.ListI64 = listData
 		err = m.Write(ctx, prot)
 		if err != nil {
 			bn.Fail()
@@ -122,17 +135,26 @@ func BenchmarkModelRebuildDyn(bn *testing.B) {
 	ctx := context.Background()
 	var err error
 	var b bytes.Buffer
+	b.Grow(2 << 11)
 	trans := thrift.NewStreamTransportRW(&b)
 	protofactory := th.ProtocolFactory(th.ProtocolType_Compact, &thrift.TConfiguration{})
 	prot := protofactory.GetProtocol(trans)
+
+	listData := []int64{1, 2, 3}
 
 	var m th.RPCStruct
 	f1 := th.NewTField(1, thrift.STRING, "abc", true)
 	f2 := th.NewTField(4, thrift.I64, "sd", true)
 	f3 := th.NewTField(9, thrift.DOUBLE, "f64", true)
-	m.AddField(f1)
-	m.AddField(f2)
-	m.AddField(f3)
+	f4 := th.NewTField(10, thrift.LIST, "listI64", true)
+	f4Value := th.NewTypeContainerList[int64](th.TypeContainerDesc{Value: thrift.I64}, true)
+	f4.SetValue(f4Value)
+	m.AddField(f1, f2, f3, f4)
+
+	f1.SetValue("hello")
+	f2.SetValue(0xcafe)
+	f4Value.Value = listData
+
 	// check
 	m.Write(ctx, prot)
 	prot.Flush(ctx)
@@ -142,6 +164,8 @@ func BenchmarkModelRebuildDyn(bn *testing.B) {
 		b.Reset()
 		f1.SetValue("hello")
 		f2.SetValue(0xcafe)
+		f4Value.Value = listData
+
 		err = m.Write(ctx, prot)
 		if err != nil {
 			fmt.Println(err)
@@ -149,8 +173,10 @@ func BenchmarkModelRebuildDyn(bn *testing.B) {
 		}
 		err = prot.Flush(ctx)
 		if err != nil {
+			fmt.Println(err)
 			bn.Fail()
 		}
+		// fmt.Println(b.Bytes())
 	}
 	bn.StopTimer()
 
@@ -162,10 +188,14 @@ func TestModelRebuild(t *testing.T) {
 	var err error
 	var b bytes.Buffer
 	trans := thrift.NewStreamTransportRW(&b)
-	protofactory := th.ProtocolFactory(th.ProtocolType_Compact, &thrift.TConfiguration{})
+	protofactory := th.ProtocolFactory(th.ProtocolType_Binary, &thrift.TConfiguration{})
 	prot := protofactory.GetProtocol(trans)
 
 	var m base.Model
+	m.Abc = "hello"
+	m.Sd = 0xcafe
+	m.ListI64 = []int64{1, 2, 3}
+
 	err = m.Write(ctx, prot)
 	is.NoError(err)
 
@@ -179,9 +209,18 @@ func TestModelRebuild(t *testing.T) {
 	// rebuild model
 
 	var m2 th.RPCStruct
-	m2.AddField(th.NewTField(1, thrift.STRING, "abc", true))
-	m2.AddField(th.NewTField(4, thrift.I64, "sd", true))
-	m2.AddField(th.NewTField(9, thrift.DOUBLE, "f64", true))
+	f1 := th.NewTField(1, thrift.STRING, "abc", true)
+	f2 := th.NewTField(4, thrift.I64, "sd", true)
+	f3 := th.NewTField(9, thrift.DOUBLE, "f64", true)
+	f4 := th.NewTField(10, thrift.LIST, "listI64", true)
+	f4Value := th.NewTypeContainerList[int64](th.TypeContainerDesc{Value: thrift.I64}, true)
+	f4.SetValue(f4Value)
+	m2.AddField(f1, f2, f3, f4)
+	//
+	f1.SetValue("hello")
+	f2.SetValue(0xcafe)
+	f4Value.Value = []int64{1, 2, 3}
+
 	err = m2.Write(ctx, prot)
 	is.NoError(err)
 
@@ -191,6 +230,9 @@ func TestModelRebuild(t *testing.T) {
 	var actual = make([]byte, b.Len())
 	copy(actual, b.Bytes())
 	b.Reset()
+
+	fmt.Printf("%+#v\n%+#v\n - f1: %+#v\n - f2: %+#v\n - f3: %+#v\n - f4: %+#v\n",
+		m, m2, f1, f2, f3, f4)
 
 	is.Equal(expected, actual)
 }
@@ -203,6 +245,9 @@ func TestModelMapOnly(t *testing.T) {
 	prot := protofactory.GetProtocol(trans)
 
 	var m = base.MapOnly{
+		ListById: map[int64][]int32{
+			1: {1, 2, 3, 4, 5},
+		},
 		StringById: map[int64]string{
 			123: "hello",
 			923: "world",
@@ -275,8 +320,8 @@ func TestModelListBytes(t *testing.T) {
 
 func TestModelReadWireData(t *testing.T) {
 	prots := []th.ProtocolType{
-		th.ProtocolType_Compact,
 		th.ProtocolType_Binary,
+		th.ProtocolType_Compact,
 	}
 	var wg sync.WaitGroup
 	wg.Add(len(prots))
@@ -334,10 +379,14 @@ func TestModelReadWireData(t *testing.T) {
 					case *thrift.TCompactProtocolFactory:
 						start := 2 // 2nd byte
 						if !bytes.Equal(expectedBytes[start:], actualBytes[start:]) {
+							fmt.Println(expectedBytes)
+							fmt.Println(actualBytes)
 							panic("not equal")
 						}
 					case *thrift.TBinaryProtocolFactory:
 						start := 4 // int32( VERSION | TMessageType )
+						fmt.Println(expectedBytes)
+						fmt.Println(actualBytes)
 						if !bytes.Equal(expectedBytes[start:], actualBytes[start:]) {
 							panic("not equal")
 						}
@@ -364,8 +413,11 @@ func TestModelReadWireData(t *testing.T) {
 						base.NewModel(),
 					},
 					ModelById: map[int64]*base.Model{
-						0xcafe: base.NewModel(),
+						1234: base.NewModel(),
 						// 0xff:   nil, // TODO: not nullable?
+					},
+					ModelByTime: map[int64][]*base.Model{
+						567: {base.NewModel()},
 					},
 					Modset: nil,
 				}
@@ -373,8 +425,12 @@ func TestModelReadWireData(t *testing.T) {
 			)
 			// var (
 			// 	expected = base.SimpleListMap{
+			// 		ListListI32: [][]int32{
+			// 			{1, 2, 3, 4},
+			// 			{5, 6, 7, 8},
+			// 		},
 			// 		ListI64:  []int64{1, 2, 3},
-			// 		I64ByI64: map[int64]int64{3: 3},
+			// 		I64ByI64: map[int64]int64{4: 5},
 			// 	}
 			// 	actual base.SimpleListMap
 			// )

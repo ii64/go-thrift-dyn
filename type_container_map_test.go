@@ -3,6 +3,7 @@ package thrift_dyn
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -45,13 +46,16 @@ func TestTypeContainer_Map(t *testing.T) {
 
 			// try to rebuild the same data.
 
-			typ := NewTypeContainerMap(thrift.MAP, TypeContainerDesc{thrift.I64, thrift.I64}, true)
+			typ := NewTypeContainerMap[int64, int64](TypeContainerDesc{thrift.I64, thrift.I64}, true)
 			typ.SetSize(len(data))
+
 			for _, k := range order {
 				v := data[k]
-				err = typ.Add(typ.Element().SetKey(k).SetValue(v))
-				is.NoError(err)
+				typ.AddKV(k, v)
 			}
+
+			fmt.Println(typ.ToMap(), typ.ToMapPtr())
+
 			err = typ.Write(ctx, proto)
 			is.NoError(err)
 
