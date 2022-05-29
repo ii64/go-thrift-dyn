@@ -11,10 +11,12 @@ import (
 )
 
 type Model struct {
-	Abc     string  `thrift:"abc,1" frugal:"1,default,string" db:"abc" json:"abc"`
-	Sd      int64   `thrift:"sd,4" frugal:"4,default,i64" db:"sd" json:"sd"`
-	F64     float64 `thrift:"f64,9" frugal:"9,default,double" db:"f64" json:"f64"`
-	ListI64 []int64 `thrift:"listI64,10" frugal:"10,optional,list<i64>" db:"listI64" json:"listI64,omitempty"`
+	Abc     string          `thrift:"abc,1" frugal:"1,default,string" db:"abc" json:"abc"`
+	Sd      int64           `thrift:"sd,4" frugal:"4,default,i64" db:"sd" json:"sd"`
+	F64     float64         `thrift:"f64,9" frugal:"9,default,double" db:"f64" json:"f64"`
+	ListI64 []int64         `thrift:"listI64,10" frugal:"10,optional,list<i64>" db:"listI64" json:"listI64,omitempty"`
+	MapI64  map[int64]int64 `thrift:"mapI64,11" frugal:"11,optional,map<i64:i64>" db:"mapI64" json:"mapI64,omitempty"`
+	MapI32  map[int32]int32 `thrift:"mapI32,12" frugal:"12,optional,map<i32:i32>" db:"mapI32" json:"mapI32,omitempty"`
 }
 
 func NewModel() *Model {
@@ -42,15 +44,43 @@ func (p *Model) GetListI64() (v []int64) {
 	return p.ListI64
 }
 
+var Model_MapI64_DEFAULT map[int64]int64
+
+func (p *Model) GetMapI64() (v map[int64]int64) {
+	if !p.IsSetMapI64() {
+		return Model_MapI64_DEFAULT
+	}
+	return p.MapI64
+}
+
+var Model_MapI32_DEFAULT map[int32]int32
+
+func (p *Model) GetMapI32() (v map[int32]int32) {
+	if !p.IsSetMapI32() {
+		return Model_MapI32_DEFAULT
+	}
+	return p.MapI32
+}
+
 var fieldIDToName_Model = map[int16]string{
 	1:  "abc",
 	4:  "sd",
 	9:  "f64",
 	10: "listI64",
+	11: "mapI64",
+	12: "mapI32",
 }
 
 func (p *Model) IsSetListI64() bool {
 	return p.ListI64 != nil
+}
+
+func (p *Model) IsSetMapI64() bool {
+	return p.MapI64 != nil
+}
+
+func (p *Model) IsSetMapI32() bool {
+	return p.MapI32 != nil
 }
 
 func (p *Model) Read(ctx context.Context, iprot thrift.TProtocol) (err error) {
@@ -105,6 +135,26 @@ func (p *Model) Read(ctx context.Context, iprot thrift.TProtocol) (err error) {
 		case 10:
 			if fieldTypeId == thrift.LIST {
 				if err = p.ReadField10(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 11:
+			if fieldTypeId == thrift.MAP {
+				if err = p.ReadField11(ctx, iprot); err != nil {
+					goto ReadFieldError
+				}
+			} else {
+				if err = iprot.Skip(ctx, fieldTypeId); err != nil {
+					goto SkipFieldError
+				}
+			}
+		case 12:
+			if fieldTypeId == thrift.MAP {
+				if err = p.ReadField12(ctx, iprot); err != nil {
 					goto ReadFieldError
 				}
 			} else {
@@ -191,6 +241,64 @@ func (p *Model) ReadField10(ctx context.Context, iprot thrift.TProtocol) error {
 	return nil
 }
 
+func (p *Model) ReadField11(ctx context.Context, iprot thrift.TProtocol) error {
+	_, _, size, err := iprot.ReadMapBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.MapI64 = make(map[int64]int64, size)
+	for i := 0; i < size; i++ {
+		var _key int64
+		if v, err := iprot.ReadI64(ctx); err != nil {
+			return err
+		} else {
+			_key = v
+		}
+
+		var _val int64
+		if v, err := iprot.ReadI64(ctx); err != nil {
+			return err
+		} else {
+			_val = v
+		}
+
+		p.MapI64[_key] = _val
+	}
+	if err := iprot.ReadMapEnd(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Model) ReadField12(ctx context.Context, iprot thrift.TProtocol) error {
+	_, _, size, err := iprot.ReadMapBegin(ctx)
+	if err != nil {
+		return err
+	}
+	p.MapI32 = make(map[int32]int32, size)
+	for i := 0; i < size; i++ {
+		var _key int32
+		if v, err := iprot.ReadI32(ctx); err != nil {
+			return err
+		} else {
+			_key = v
+		}
+
+		var _val int32
+		if v, err := iprot.ReadI32(ctx); err != nil {
+			return err
+		} else {
+			_val = v
+		}
+
+		p.MapI32[_key] = _val
+	}
+	if err := iprot.ReadMapEnd(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *Model) Write(ctx context.Context, oprot thrift.TProtocol) (err error) {
 	var fieldId int16
 	if err = oprot.WriteStructBegin(ctx, "Model"); err != nil {
@@ -211,6 +319,14 @@ func (p *Model) Write(ctx context.Context, oprot thrift.TProtocol) (err error) {
 		}
 		if err = p.writeField10(ctx, oprot); err != nil {
 			fieldId = 10
+			goto WriteFieldError
+		}
+		if err = p.writeField11(ctx, oprot); err != nil {
+			fieldId = 11
+			goto WriteFieldError
+		}
+		if err = p.writeField12(ctx, oprot); err != nil {
+			fieldId = 12
 			goto WriteFieldError
 		}
 
@@ -310,6 +426,70 @@ WriteFieldEndError:
 	return thrift.PrependError(fmt.Sprintf("%T write field 10 end error: ", p), err)
 }
 
+func (p *Model) writeField11(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if p.IsSetMapI64() {
+		if err = oprot.WriteFieldBegin(ctx, "mapI64", thrift.MAP, 11); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteMapBegin(ctx, thrift.I64, thrift.I64, len(p.MapI64)); err != nil {
+			return err
+		}
+		for k, v := range p.MapI64 {
+
+			if err := oprot.WriteI64(ctx, k); err != nil {
+				return err
+			}
+
+			if err := oprot.WriteI64(ctx, v); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteMapEnd(ctx); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(ctx); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 11 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 11 end error: ", p), err)
+}
+
+func (p *Model) writeField12(ctx context.Context, oprot thrift.TProtocol) (err error) {
+	if p.IsSetMapI32() {
+		if err = oprot.WriteFieldBegin(ctx, "mapI32", thrift.MAP, 12); err != nil {
+			goto WriteFieldBeginError
+		}
+		if err := oprot.WriteMapBegin(ctx, thrift.I32, thrift.I32, len(p.MapI32)); err != nil {
+			return err
+		}
+		for k, v := range p.MapI32 {
+
+			if err := oprot.WriteI32(ctx, k); err != nil {
+				return err
+			}
+
+			if err := oprot.WriteI32(ctx, v); err != nil {
+				return err
+			}
+		}
+		if err := oprot.WriteMapEnd(ctx); err != nil {
+			return err
+		}
+		if err = oprot.WriteFieldEnd(ctx); err != nil {
+			goto WriteFieldEndError
+		}
+	}
+	return nil
+WriteFieldBeginError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 12 begin error: ", p), err)
+WriteFieldEndError:
+	return thrift.PrependError(fmt.Sprintf("%T write field 12 end error: ", p), err)
+}
+
 func (p *Model) String() string {
 	if p == nil {
 		return "<nil>"
@@ -333,6 +513,12 @@ func (p *Model) DeepEqual(ano *Model) bool {
 		return false
 	}
 	if !p.Field10DeepEqual(ano.ListI64) {
+		return false
+	}
+	if !p.Field11DeepEqual(ano.MapI64) {
+		return false
+	}
+	if !p.Field12DeepEqual(ano.MapI32) {
 		return false
 	}
 	return true
@@ -366,6 +552,32 @@ func (p *Model) Field10DeepEqual(src []int64) bool {
 	}
 	for i, v := range p.ListI64 {
 		_src := src[i]
+		if v != _src {
+			return false
+		}
+	}
+	return true
+}
+func (p *Model) Field11DeepEqual(src map[int64]int64) bool {
+
+	if len(p.MapI64) != len(src) {
+		return false
+	}
+	for k, v := range p.MapI64 {
+		_src := src[k]
+		if v != _src {
+			return false
+		}
+	}
+	return true
+}
+func (p *Model) Field12DeepEqual(src map[int32]int32) bool {
+
+	if len(p.MapI32) != len(src) {
+		return false
+	}
+	for k, v := range p.MapI32 {
+		_src := src[k]
 		if v != _src {
 			return false
 		}

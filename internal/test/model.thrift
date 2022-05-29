@@ -5,6 +5,8 @@ struct Model {
     4: i64 sd
     9: double f64
     10: optional list<i64> listI64
+    11: optional map<i64, i64> mapI64
+    12: optional map<i32, i32> mapI32
 }
 
 struct Request {

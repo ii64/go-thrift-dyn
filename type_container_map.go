@@ -13,7 +13,6 @@ type TypeContainerMapItem[K comparable, V any] struct {
 }
 
 type TypeContainerMap[K comparable, V any] struct {
-	Type     thrift.TType
 	Required bool
 	Desc     TypeContainerDesc
 	Size     int
@@ -22,7 +21,6 @@ type TypeContainerMap[K comparable, V any] struct {
 
 func NewTypeContainerMap[K comparable, V any](desc TypeContainerDesc, required bool) *TypeContainerMap[K, V] {
 	typ := &TypeContainerMap[K, V]{
-		Type:     thrift.MAP,
 		Required: required,
 		Desc:     desc,
 	}
@@ -57,11 +55,14 @@ func (t *TypeContainerMap[K, V]) ToMapPtr() map[K]*V {
 	return ret
 }
 
+// FromMap *copy* map to value
 func (t *TypeContainerMap[K, V]) FromMap(m map[K]V) {
 	for k, v := range m {
 		t.AddKV(k, v)
 	}
 }
+
+// FromMapOrdered *copy* map to value
 func (t *TypeContainerMap[K, V]) FromMapOrdered(m map[K]V) {
 	var keys []K
 	for k := range m {
@@ -79,25 +80,24 @@ func (t *TypeContainerMap[K, V]) Write(ctx context.Context, p thrift.TProtocol) 
 	if err = p.WriteMapBegin(ctx, t.Desc.Key, t.Desc.Value, size); err != nil {
 		return
 	}
+	spec := TDataSpec{
+		Required: t.Required,
+		Protocol: p,
+	}
 	for i := 0; i < size; i++ {
-		value := t.Value[i]
-		if err = WriteData[K](ctx, TData[K]{
-			TDataSpec: TDataSpec{
-				Type:     t.Desc.Key,
-				Required: t.Required,
-				Protocol: p,
-			},
-			Value: &value.Key,
+		item := t.Value[i]
+		spec.Type = t.Desc.Key
+		if err = WriteData(ctx, TData[K]{
+			TDataSpec: spec,
+			Value:     &item.Key,
 		}); err != nil {
 			return
 		}
-		if err = WriteData[V](ctx, TData[V]{
-			TDataSpec: TDataSpec{
-				Type:     t.Desc.Value,
-				Required: t.Required,
-				Protocol: p,
-			},
-			Value: &value.Value,
+
+		spec.Type = t.Desc.Value
+		if err = WriteData(ctx, TData[V]{
+			TDataSpec: spec,
+			Value:     &item.Value,
 		}); err != nil {
 			return
 		}
@@ -110,12 +110,12 @@ func (t *TypeContainerMap[K, V]) Write(ctx context.Context, p thrift.TProtocol) 
 
 func (t *TypeContainerMap[K, V]) Read(ctx context.Context, p thrift.TProtocol) (err error) {
 	vv := t.Value[:0]
+	spec := TDataSpec{
+		Required: t.Required,
+		Protocol: p,
+	}
 	for i := 0; i < t.Size; i++ {
 		var value TypeContainerMapItem[K, V]
-		spec := TDataSpec{
-			Required: t.Required,
-			Protocol: p,
-		}
 
 		spec.Type = t.Desc.Key
 		if err = ReadData(ctx, TData[K]{

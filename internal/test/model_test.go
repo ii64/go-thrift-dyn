@@ -82,21 +82,30 @@ func BenchmarkModelRebuildOriginal(bn *testing.B) {
 	prot := protofactory.GetProtocol(trans)
 
 	listData := []int64{1, 2, 3}
+	mapI64 := map[int64]int64{1: 2}
+	mapI32 := map[int32]int32{3: 4}
 
 	var m base.Model
 	m.Abc = "hello"
 	m.Sd = 0xcafe
 	m.ListI64 = listData
+	m.MapI64 = mapI64
+	m.MapI32 = mapI32
 
 	m.Write(ctx, prot)
 	prot.Flush(ctx)
 	fmt.Println(b.Bytes())
+
+	m.MapI32 = map[int32]int32{}
 	bn.ResetTimer()
 	for i := 0; i < bn.N; i++ {
 		b.Reset()
 		m.Abc = "hello"
 		m.Sd = 0xcafe
 		m.ListI64 = listData
+		m.MapI64 = mapI64
+		// m.MapI32 = mapI32 // fair bench with dyn one.
+
 		err = m.Write(ctx, prot)
 		if err != nil {
 			bn.Fail()
@@ -141,6 +150,8 @@ func BenchmarkModelRebuildDyn(bn *testing.B) {
 	prot := protofactory.GetProtocol(trans)
 
 	listData := []int64{1, 2, 3}
+	mapI64 := map[int64]int64{1: 2}
+	mapI32 := map[int32]int32{3: 4}
 
 	var m th.RPCStruct
 	f1 := th.NewTField(1, thrift.STRING, "abc", true)
@@ -149,11 +160,19 @@ func BenchmarkModelRebuildDyn(bn *testing.B) {
 	f4 := th.NewTField(10, thrift.LIST, "listI64", true)
 	f4Value := th.NewTypeContainerList[int64](th.TypeContainerDesc{Value: thrift.I64}, true)
 	f4.SetValue(f4Value)
-	m.AddField(f1, f2, f3, f4)
+	f5 := th.NewTField(11, thrift.MAP, "mapI64", true)
+	f5Value := th.NewTypeContainerMapUnordered[int64, int64](th.TypeContainerDesc{Key: thrift.I64, Value: thrift.I64}, true)
+	f5.SetValue(f5Value)
+	f6 := th.NewTField(12, thrift.MAP, "mapI32", false)
+	f6Value := th.NewTypeContainerMap[int32, int32](th.TypeContainerDesc{Key: thrift.I32, Value: thrift.I32}, false)
+	f6.SetValue(f6Value) // comment this to make it act as optional
+	m.AddField(f1, f2, f3, f4, f5, f6)
 
 	f1.SetValue("hello")
 	f2.SetValue(0xcafe)
 	f4Value.Value = listData
+	f5Value.Value = mapI64
+	f6Value.FromMap(mapI32)
 
 	// check
 	m.Write(ctx, prot)
@@ -165,6 +184,8 @@ func BenchmarkModelRebuildDyn(bn *testing.B) {
 		f1.SetValue("hello")
 		f2.SetValue(0xcafe)
 		f4Value.Value = listData
+		f5Value.Value = mapI64
+		// f6Value.FromMap(mapI32) // fair bench with dyn one.
 
 		err = m.Write(ctx, prot)
 		if err != nil {
@@ -195,6 +216,12 @@ func TestModelRebuild(t *testing.T) {
 	m.Abc = "hello"
 	m.Sd = 0xcafe
 	m.ListI64 = []int64{1, 2, 3}
+	m.MapI64 = map[int64]int64{
+		8: 9,
+	}
+	m.MapI32 = map[int32]int32{
+		2: 8,
+	}
 
 	err = m.Write(ctx, prot)
 	is.NoError(err)
@@ -215,11 +242,19 @@ func TestModelRebuild(t *testing.T) {
 	f4 := th.NewTField(10, thrift.LIST, "listI64", true)
 	f4Value := th.NewTypeContainerList[int64](th.TypeContainerDesc{Value: thrift.I64}, true)
 	f4.SetValue(f4Value)
-	m2.AddField(f1, f2, f3, f4)
+	f5 := th.NewTField(11, thrift.MAP, "mapI64", true)
+	f5Value := th.NewTypeContainerMapUnordered[int64, int64](th.TypeContainerDesc{Key: thrift.I64, Value: thrift.I64}, true)
+	f5.SetValue(f5Value)
+	f6 := th.NewTField(12, thrift.MAP, "mapI32", false)
+	f6Value := th.NewTypeContainerMap[int32, int32](th.TypeContainerDesc{Key: thrift.I32, Value: thrift.I32}, false)
+	f6.SetValue(f6Value) // comment this to make it act as optional
+	m2.AddField(f1, f2, f3, f4, f5, f6)
 	//
-	f1.SetValue("hello")
-	f2.SetValue(0xcafe)
-	f4Value.Value = []int64{1, 2, 3}
+	f1.SetValue(m.Abc)
+	f2.SetValue(m.Sd)
+	f4Value.Value = m.ListI64
+	f5Value.Value = m.MapI64
+	f6Value.FromMap(m.MapI32)
 
 	err = m2.Write(ctx, prot)
 	is.NoError(err)

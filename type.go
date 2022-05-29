@@ -17,32 +17,6 @@ type TData[T any] struct {
 	Value *T
 }
 
-func WriteDataGenericx(ctx context.Context, t TDataSpec, value any) (err error) {
-	switch value := value.(type) {
-	case bool:
-		return t.Protocol.WriteBool(ctx, value)
-	case byte:
-		return t.Protocol.WriteByte(ctx, int8(value))
-	case int8:
-		return t.Protocol.WriteByte(ctx, value)
-	case int16:
-		return t.Protocol.WriteI16(ctx, value)
-	case int32:
-		return t.Protocol.WriteI32(ctx, value)
-	case int64:
-		return t.Protocol.WriteI64(ctx, value)
-	case float64:
-		return t.Protocol.WriteDouble(ctx, value)
-	case []byte:
-		return t.Protocol.WriteBinary(ctx, value)
-	case string:
-		return t.Protocol.WriteString(ctx, value)
-	case thrift.TStruct: // *RPCStruct | TypeContainerImplementer
-		return value.Write(ctx, t.Protocol)
-	}
-	return fmt.Errorf("expected %s, got %T", t.Type, value)
-}
-
 func WriteDataGeneric(ctx context.Context, t TDataSpec, value any) (err error) {
 	switch t.Type {
 	case thrift.BOOL:
@@ -153,7 +127,12 @@ func ReadDataGeneric(ctx context.Context, t TDataSpec, value *any) (err error) {
 	case thrift.DOUBLE:
 		*value, err = t.Protocol.ReadDouble(ctx)
 	case thrift.STRING:
-		*value, err = t.Protocol.ReadString(ctx)
+		switch ((any)(*value)).(type) {
+		case string:
+			*value, err = t.Protocol.ReadString(ctx)
+		default: // fallback
+			*value, err = t.Protocol.ReadBinary(ctx)
+		}
 		return
 	case thrift.STRUCT:
 		st := &RPCStruct{}

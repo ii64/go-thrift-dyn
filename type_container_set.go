@@ -7,7 +7,6 @@ import (
 )
 
 type TypeContainerSet[T Sliceable] struct {
-	Type     thrift.TType
 	Required bool
 	Desc     TypeContainerDesc
 	Size     int
@@ -16,7 +15,6 @@ type TypeContainerSet[T Sliceable] struct {
 
 func NewTypeContainerSet[T Sliceable](desc TypeContainerDesc, required bool) *TypeContainerSet[T] {
 	typ := &TypeContainerSet[T]{
-		Type:     thrift.SET,
 		Required: required,
 		Desc:     desc,
 	}

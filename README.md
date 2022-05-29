@@ -32,25 +32,27 @@ Benchmark write of simple message:
 
 ```thrift
 struct Model {
-  1: string abc; 4: i64 sd; 9: double f64
-  10: optional list<i64> listI64
+    1: string abc; 4: i64 sd; 9: double f64 // "hello", 0xcafe, 0.0
+    10: optional list<i64> listI64    // {1, 2, 3}
+    11: optional map<i64, i64> mapI64 // {1: 2}
+    12: optional map<i32, i32> mapI32 // empty
 }
 ```
 
 ```
 TBinary:
-BenchmarkModelRebuildOriginal-12     3283041	       341.8 ns/op
-BenchmarkModelRebuildOriginal-12     3502664	       345.2 ns/op
-BenchmarkModelRebuildOriginal-12     3450882	       358.4 ns/op
-BenchmarkModelRebuildDyn-12          2934448	       418.1 ns/op
-BenchmarkModelRebuildDyn-12          2927372	       418.8 ns/op
-BenchmarkModelRebuildDyn-12    	     2921905	       425.2 ns/op
+BenchmarkModelRebuildOriginal-12     1971684	       611.0 ns/op
+BenchmarkModelRebuildOriginal-12     1982988	       598.5 ns/op
+BenchmarkModelRebuildOriginal-12     1901395	       597.0 ns/op
+BenchmarkModelRebuildDyn-12    	     1000000	      1040 ns/op
+BenchmarkModelRebuildDyn-12    	     1000000	      1063 ns/op
+BenchmarkModelRebuildDyn-12    	     1000000	      1025 ns/op
 
 TCompact:
-BenchmarkModelRebuildOriginal-12     2822864	       436.8 ns/op
-BenchmarkModelRebuildOriginal-12     2777244	       413.8 ns/op
-BenchmarkModelRebuildOriginal-12     2831146	       439.3 ns/op
-BenchmarkModelRebuildDyn-12    	     2587606	       469.5 ns/op
-BenchmarkModelRebuildDyn-12    	     2506990	       478.6 ns/op
-BenchmarkModelRebuildDyn-12    	     2543522	       468.8 ns/op
+BenchmarkModelRebuildOriginal-12     1681024	       748.5 ns/op
+BenchmarkModelRebuildOriginal-12     1709762	       690.0 ns/op
+BenchmarkModelRebuildOriginal-12     1666425	       769.9 ns/op
+BenchmarkModelRebuildDyn-12          1124538	      1177 ns/op
+BenchmarkModelRebuildDyn-12          1000000	      1091 ns/op
+BenchmarkModelRebuildDyn-12          1063579	      1171 ns/op
 ```
